@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GATE 2026 Accountability Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              primary: {
+                DEFAULT: '#7C3AED',
+                dark: '#5B21B6',
+              },
+              secondary: '#3B82F6',
+              success: '#10B981',
+              warning: '#F59E0B',
+              danger: '#EC4899',
+              accent: '#06B6D4',
+              dark: {
+                text: '#F3F4F6',
+                'text-secondary': '#9CA3AF',
+                background: '#111827',
+                card: '#1F2937',
+                border: '#374151',
+              },
+              light: {
+                text: '#1F2937',
+                'text-secondary': '#6B7280',
+                background: '#F3F4F6',
+                card: '#FFFFFF',
+                border: '#E5E7EB',
+              }
+            },
+            boxShadow: {
+              'neumorphic-light': '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff',
+              'neumorphic-dark': '5px 5px 10px #0d121c, -5px -5px 10px #151e32',
+              'neumorphic-light-inset': 'inset 5px 5px 10px #d1d9e6, inset -5px -5px 10px #ffffff',
+              'neumorphic-dark-inset': 'inset 5px 5px 10px #0d121c, inset -5px -5px 10px #151e32',
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-light-background dark:bg-dark-background">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
