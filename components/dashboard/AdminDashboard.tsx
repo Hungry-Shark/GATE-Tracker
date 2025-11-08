@@ -3,6 +3,7 @@ import React from 'react';
 import TaskAssignment from '../admin/TaskAssignment';
 import ProgressMonitor from '../admin/ProgressMonitor';
 import RewardManagement from '../admin/RewardManagement';
+import StudentList from '../admin/StudentList';
 import { motion } from 'framer-motion';
 
 const containerVariants = {
@@ -29,15 +30,23 @@ const AdminDashboard: React.FC = () => {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+      className="space-y-6"
     >
-      <motion.div variants={itemVariants} className="lg:col-span-1">
-        <TaskAssignment />
+      <motion.div variants={itemVariants}>
+        <StudentList />
       </motion.div>
-      <motion.div variants={itemVariants} className="lg:col-span-2">
-        <ProgressMonitor />
+      <motion.div 
+        variants={itemVariants} 
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+      >
+        <div className="lg:col-span-1">
+          <TaskAssignment />
+        </div>
+        <div className="lg:col-span-2">
+          <ProgressMonitor />
+        </div>
       </motion.div>
-      <motion.div variants={itemVariants} className="lg:col-span-3">
+      <motion.div variants={itemVariants}>
         <RewardManagement />
       </motion.div>
     </motion.div>

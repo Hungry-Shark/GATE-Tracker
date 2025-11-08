@@ -1,17 +1,17 @@
 
 import React from 'react';
-import type { View } from '../../types';
-import { SunIcon, MoonIcon, UserIcon, CogIcon } from '../icons/Icons';
+import { useAuth } from '../../context/AuthContext';
+import { SunIcon, MoonIcon } from '../icons/Icons';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface HeaderProps {
-  currentView: View;
-  onViewChange: (view: View) => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, isDarkMode, onToggleTheme }) => {
+const Header: React.FC<HeaderProps> = ({ isDarkMode, onToggleTheme }) => {
+  const { currentUser, logout } = useAuth();
+
   return (
     <header className="sticky top-0 z-50 bg-white/70 dark:bg-dark-background/70 backdrop-blur-lg shadow-sm dark:shadow-md">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -24,24 +24,20 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, isDarkMode, 
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="bg-light-background dark:bg-dark-card p-1 rounded-full flex items-center space-x-1 shadow-neumorphic-light-inset dark:shadow-neumorphic-dark-inset">
-              <button
-                onClick={() => onViewChange('student')}
-                className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
-                  currentView === 'student' ? 'bg-primary text-white shadow-md' : 'text-light-text-secondary dark:text-dark-text-secondary'
-                }`}
-              >
-                Student
-              </button>
-              <button
-                onClick={() => onViewChange('admin')}
-                className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
-                  currentView === 'admin' ? 'bg-primary text-white shadow-md' : 'text-light-text-secondary dark:text-dark-text-secondary'
-                }`}
-              >
-                Admin
-              </button>
-            </div>
+            {currentUser && (
+              <div className="flex items-center space-x-3">
+                <div className="text-sm">
+                  <p className="font-semibold text-light-text dark:text-dark-text">{currentUser.name}</p>
+                  <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary capitalize">{currentUser.role}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-sm font-semibold transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             
             <button onClick={onToggleTheme} className="w-10 h-10 rounded-full flex items-center justify-center bg-light-background dark:bg-dark-card shadow-neumorphic-light dark:shadow-neumorphic-dark focus:outline-none focus:ring-2 focus:ring-primary">
               <AnimatePresence mode="wait" initial={false}>

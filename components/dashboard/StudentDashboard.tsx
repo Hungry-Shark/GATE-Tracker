@@ -1,11 +1,13 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useAppContext } from '../../context/AppContext';
 import ProgressOverview from '../student/ProgressOverview';
 import TodaysTasks from '../student/TodaysTasks';
 import SubjectProgress from '../student/SubjectProgress';
 import Rewards from '../student/Rewards';
 import Analytics from '../student/Analytics';
+import Card from '../common/Card';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -26,6 +28,20 @@ const itemVariants = {
 };
 
 const StudentDashboard: React.FC = () => {
+  const { student } = useAppContext();
+
+  if (!student) {
+    return (
+      <Card>
+        <div className="p-8 text-center">
+          <p className="text-light-text-secondary dark:text-dark-text-secondary">
+            Loading your dashboard...
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <motion.div
       variants={containerVariants}

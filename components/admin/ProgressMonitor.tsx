@@ -1,24 +1,44 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import Card, { CardHeader, CardContent } from '../common/Card';
 import { formatDistanceToNow } from 'date-fns';
 
 const ProgressMonitor: React.FC = () => {
-  const { student, tasks } = useAppContext();
+  const { tasks, students, getTasksForStudent } = useAppContext();
+  const { currentUser, students: adminStudents } = useAuth();
 
-  const completedTasks = tasks.filter(t => t.status === 'completed');
+  // Get all tasks for all students under this admin
+  const allAdminTasks = useMemo(() => {
+    if (!currentUser || currentUser.role !== 'admin') return [];
+    const studentIds = adminStudents[currentUser.id] || [];
+    return studentIds.flatMap(id => {
+      const student = Object.values(students).find(s => s.userId === id);
+      return student ? getTasksForStudent(student.id) : [];
+    });
+  }, [currentUser, adminStudents, students, getTasksForStudent]);
+
+  const completedTasks = allAdminTasks.filter(t => t.status === 'completed');
   const recentActivities = completedTasks
     .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
     .slice(0, 10);
   
+  // Aggregate stats across all students
+  const totalXP = Object.values(students)
+    .filter(s => adminStudents[currentUser?.id || '']?.includes(s.userId))
+    .reduce((sum, s) => sum + s.totalXP, 0);
+  const totalBadges = Object.values(students)
+    .filter(s => adminStudents[currentUser?.id || '']?.includes(s.userId))
+    .reduce((sum, s) => sum + s.badges.length, 0);
+  
   const stats = [
-    { label: 'Total XP', value: student.totalXP },
-    { label: 'Level', value: student.level },
-    { label: 'Current Streak', value: student.currentStreak },
-    { label: 'Badges', value: student.badges.length },
+    { label: 'Total XP (All Students)', value: totalXP },
+    { label: 'Total Students', value: adminStudents[currentUser?.id || '']?.length || 0 },
+    { label: 'Total Badges', value: totalBadges },
     { label: 'Tasks Completed', value: completedTasks.length },
-    { label: 'Tasks Pending', value: tasks.filter(t => t.status === 'pending').length },
+    { label: 'Tasks Pending', value: allAdminTasks.filter(t => t.status === 'pending').length },
+    { label: 'Total Tasks', value: allAdminTasks.length },
   ];
 
   return (

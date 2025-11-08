@@ -8,6 +8,8 @@ import { motion } from 'framer-motion';
 const Rewards: React.FC = () => {
   const { student, rewards, redeemReward } = useAppContext();
   
+  if (!student) return null;
+  
   const currentLevelInfo = LEVELS.slice().reverse().find(l => student.totalXP >= l.minXp) || LEVELS[0];
   const nextLevelInfo = LEVELS.find(l => l.minXp > student.totalXP);
   

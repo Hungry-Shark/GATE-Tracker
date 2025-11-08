@@ -34,11 +34,25 @@ const StudyHeatmap = () => {
     const firstDay = calendarData[0]?.date;
     const startingDayOfWeek = firstDay ? firstDay.getDay() : 0; // 0 = Sunday
 
-    const getColor = (minutes: number) => {
-        if (minutes === 0) return 'bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-600/50';
-        if (minutes < 60) return 'bg-green-200 dark:bg-green-900/50 hover:bg-green-300 dark:hover:bg-green-800/50';
-        if (minutes < 180) return 'bg-green-400 dark:bg-green-700/50 hover:bg-green-500 dark:hover:bg-green-600/50';
-        return 'bg-green-600 dark:bg-green-500/50 hover:bg-green-700 dark:hover:bg-green-400/50';
+    // Calculate color saturation based on minutes (0-480 minutes max for 8 hours)
+    const getColorStyle = (minutes: number) => {
+        if (minutes === 0) {
+            return { backgroundColor: 'rgba(156, 163, 175, 0.3)' }; // Light gray
+        }
+        // Normalize to 0-1 scale (assuming max 480 minutes = 8 hours)
+        const maxMinutes = 480;
+        const intensity = Math.min(minutes / maxMinutes, 1);
+        
+        // Base green color with increasing saturation
+        // Light color for low minutes, bright color for high minutes
+        const hue = 142; // Green hue
+        const saturationPercent = 40 + (intensity * 60); // 40% to 100% saturation
+        const lightness = 70 - (intensity * 30); // 70% to 40% lightness (darker = more saturated)
+        const opacity = 0.4 + (intensity * 0.6); // 0.4 to 1.0 opacity
+        
+        return {
+            backgroundColor: `hsla(${hue}, ${saturationPercent}%, ${lightness}%, ${opacity})`,
+        };
     }
     
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -49,16 +63,20 @@ const StudyHeatmap = () => {
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary mb-2">
                 {weekdays.map(day => <div key={day}>{day}</div>)}
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-2 justify-items-center items-center">
                 {Array.from({ length: startingDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
-                {calendarData.map((day, index) => (
-                    <div
-                        key={index}
-                        className={`aspect-square rounded-md cursor-pointer transition-colors ${getColor(day.minutes)}`}
-                        title={`${format(day.date, 'MMM d, yyyy')}: ${day.minutes} mins`}
-                        onClick={() => setSelectedDay(day)}
-                    />
-                ))}
+                {calendarData.map((day, index) => {
+                    const colorStyle = getColorStyle(day.minutes);
+                    return (
+                        <div
+                            key={index}
+                            className="w-3 h-3 rounded-full cursor-pointer transition-all hover:scale-125"
+                            style={colorStyle}
+                            title={`${format(day.date, 'MMM d, yyyy')}: ${day.minutes} mins`}
+                            onClick={() => setSelectedDay(day)}
+                        />
+                    );
+                })}
             </div>
 
              <AnimatePresence>

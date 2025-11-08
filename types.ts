@@ -1,7 +1,20 @@
 import React from 'react';
 
+export type UserRole = 'admin' | 'student';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  token?: string; // For admins: their unique token, for students: the admin token they used
+  adminId?: string; // For students: the admin they're assigned to
+  createdAt: string; // ISO string
+}
+
 export interface Student {
   id: string;
+  userId: string; // Links to User.id
   name: string;
   totalXP: number;
   level: number;
@@ -17,6 +30,7 @@ export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'skipped';
 
 export interface Task {
   id: string;
+  studentId: string; // Which student this task is assigned to
   title: string;
   subject: string;
   type: TaskType;

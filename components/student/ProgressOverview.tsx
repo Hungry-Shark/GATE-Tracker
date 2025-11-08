@@ -8,6 +8,9 @@ import { GATE_EXAM_DATE } from '../../constants';
 
 const ProgressOverview: React.FC = () => {
   const { student, tasks } = useAppContext();
+  
+  if (!student) return null;
+  
   const daysLeft = differenceInDays(GATE_EXAM_DATE, new Date());
   
   const completedTasks = tasks.filter(t => t.status === 'completed').length;
