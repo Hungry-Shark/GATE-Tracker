@@ -1,7 +1,19 @@
-
-import React, { createContext, useContext, ReactNode, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  getDocs, 
+  query, 
+  where, 
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
 import type { Student, Task, Reward, BadgeKey, TaskStatus } from '../types';
-import { usePersistentState } from '../hooks/usePersistentState';
 import { isSameDay, isBefore, parseISO } from 'date-fns';
 import { BADGES } from '../constants';
 import { useAuth } from './AuthContext';
@@ -11,12 +23,13 @@ interface AppContextType {
   students: { [studentId: string]: Student }; // All students (for admin view)
   tasks: Task[];
   rewards: Reward[];
-  addTask: (task: Omit<Task, 'id' | 'status' | 'studentId'>, studentId?: string) => void;
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
-  addReward: (reward: Omit<Reward, 'id' | 'redeemed'>) => void;
-  redeemReward: (rewardId: string) => void;
+  addTask: (task: Omit<Task, 'id' | 'status' | 'studentId'>, studentId?: string) => Promise<void>;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+  addReward: (reward: Omit<Reward, 'id' | 'redeemed'>) => Promise<void>;
+  redeemReward: (rewardId: string) => Promise<void>;
   getStudentById: (studentId: string) => Student | null;
   getTasksForStudent: (studentId: string) => Task[];
+  loading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -28,10 +41,11 @@ const initialRewards: Reward[] = [
 ];
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { currentUser } = useAuth();
-  const [students, setStudents] = usePersistentState<{ [studentId: string]: Student }>('gate-students', {});
-  const [tasks, setTasks] = usePersistentState<Task[]>('gate-tasks', []);
-  const [rewards, setRewards] = usePersistentState<Reward[]>('gate-rewards', initialRewards);
+  const { currentUser, students: adminStudents } = useAuth();
+  const [students, setStudents] = useState<{ [studentId: string]: Student }>({});
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>(initialRewards);
+  const [loading, setLoading] = useState(true);
 
   // Get current student based on logged-in user
   const student = useMemo(() => {
@@ -42,7 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Initialize student if user is student and doesn't have one
   useEffect(() => {
-    if (currentUser && currentUser.role === 'student') {
+    if (currentUser && currentUser.role === 'student' && !loading) {
       const existingStudent = Object.values(students).find(s => s.userId === currentUser.id);
       if (!existingStudent) {
         const newStudent: Student = {
@@ -56,23 +70,173 @@ export function AppProvider({ children }: { children: ReactNode }) {
           badges: [],
           lastLogin: new Date().toISOString(),
         };
-        setStudents(prev => ({ ...prev, [newStudent.id]: newStudent }));
+        
+        // Save to Firestore
+        setDoc(doc(db, 'students', newStudent.id), {
+          ...newStudent,
+          createdAt: serverTimestamp(),
+        }).catch(console.error);
       }
     }
-  }, [currentUser, students, setStudents]);
+  }, [currentUser, students, loading]);
+
+  // Load students data from Firestore
+  useEffect(() => {
+    if (!currentUser || loading) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (currentUser.role === 'admin') {
+      // Load all students assigned to this admin
+      const studentIds = adminStudents[currentUser.id] || [];
+      if (studentIds.length > 0) {
+        const loadStudents = async () => {
+          const studentsData: { [key: string]: Student } = {};
+          const promises = studentIds.map(async (userId) => {
+            const studentsRef = collection(db, 'students');
+            const q = query(studentsRef, where('userId', '==', userId));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach((doc) => {
+              const data = doc.data();
+              studentsData[doc.id] = { ...data, id: doc.id } as Student;
+            });
+          });
+          await Promise.all(promises);
+          setStudents(studentsData);
+        };
+        loadStudents();
+      }
+    } else if (currentUser.role === 'student') {
+      // Load current student's data
+      const studentsRef = collection(db, 'students');
+      const q = query(studentsRef, where('userId', '==', currentUser.id));
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const studentsData: { [key: string]: Student } = {};
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          studentsData[doc.id] = { ...data, id: doc.id } as Student;
+        });
+        setStudents(studentsData);
+      });
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser, adminStudents, loading]);
+
+  // Load tasks from Firestore
+  useEffect(() => {
+    if (!currentUser || loading) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (currentUser.role === 'admin') {
+      // Load all tasks for students assigned to this admin
+      // Get student document IDs from the students state
+      const studentDocIds = Object.keys(students);
+      if (studentDocIds.length > 0) {
+        // Firestore "in" query has a limit of 10 items, so we need to handle this
+        // For now, we'll load all tasks and filter client-side if needed
+        // Or we can make multiple queries if studentDocIds.length > 10
+        const tasksRef = collection(db, 'tasks');
+        
+        if (studentDocIds.length <= 10) {
+          const q = query(tasksRef, where('studentId', 'in', studentDocIds));
+          unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const tasksData: Task[] = [];
+            querySnapshot.forEach((doc) => {
+              const data = doc.data();
+              tasksData.push({ ...data, id: doc.id } as Task);
+            });
+            setTasks(tasksData);
+          });
+        } else {
+          // If more than 10 students, load all tasks and filter client-side
+          unsubscribe = onSnapshot(tasksRef, (querySnapshot) => {
+            const tasksData: Task[] = [];
+            querySnapshot.forEach((doc) => {
+              const data = doc.data();
+              const task = { ...data, id: doc.id } as Task;
+              if (studentDocIds.includes(task.studentId)) {
+                tasksData.push(task);
+              }
+            });
+            setTasks(tasksData);
+          });
+        }
+      }
+    } else if (currentUser.role === 'student' && student) {
+      // Load tasks for current student
+      const tasksRef = collection(db, 'tasks');
+      const q = query(tasksRef, where('studentId', '==', student.id));
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const tasksData: Task[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          tasksData.push({ ...data, id: doc.id } as Task);
+        });
+        setTasks(tasksData);
+      });
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser, student, adminStudents, students, loading]);
+
+  // Load rewards from Firestore
+  useEffect(() => {
+    if (!currentUser || loading) return;
+
+    const rewardsRef = collection(db, 'rewards');
+    const unsubscribe = onSnapshot(rewardsRef, async (querySnapshot) => {
+      if (querySnapshot.empty) {
+        // Initialize default rewards if none exist
+        const initRewards = async () => {
+          await Promise.all(
+            initialRewards.map((reward) => 
+              setDoc(doc(db, 'rewards', reward.id), reward)
+            )
+          );
+          setRewards(initialRewards);
+        };
+        initRewards();
+      } else {
+        const rewardsData: Reward[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          rewardsData.push({ ...data, id: doc.id } as Reward);
+        });
+        setRewards(rewardsData);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, loading]);
+
+  // Set loading to false after initial load
+  useEffect(() => {
+    if (currentUser) {
+      const timer = setTimeout(() => setLoading(false), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoading(false);
+    }
+  }, [currentUser]);
 
   const checkAchievements = useCallback((updatedStudent: Student, updatedTasks: Task[], completedTask: Task) => {
     const newBadges = new Set(updatedStudent.badges);
 
     // Early Bird
-    if (new Date(completedTask.completedAt!).getHours() < 9) {
-        const earlyBirdTasks = updatedTasks.filter(t => t.status === 'completed' && new Date(t.completedAt!).getHours() < 9).length;
+    if (completedTask.completedAt && new Date(completedTask.completedAt).getHours() < 9) {
+        const earlyBirdTasks = updatedTasks.filter(t => t.status === 'completed' && t.completedAt && new Date(t.completedAt).getHours() < 9).length;
         if (earlyBirdTasks >= 3) newBadges.add('EARLY_BIRD');
     }
     
     // Night Owl
-    if (new Date(completedTask.completedAt!).getHours() >= 22) {
-        const nightOwlTasks = updatedTasks.filter(t => t.status === 'completed' && new Date(t.completedAt!).getHours() >= 22).length;
+    if (completedTask.completedAt && new Date(completedTask.completedAt).getHours() >= 22) {
+        const nightOwlTasks = updatedTasks.filter(t => t.status === 'completed' && t.completedAt && new Date(t.completedAt).getHours() >= 22).length;
         if (nightOwlTasks >= 5) newBadges.add('NIGHT_OWL');
     }
 
@@ -94,7 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Speed Runner
-    const todayCompleted = updatedTasks.filter(t => t.status === 'completed' && isSameDay(new Date(t.completedAt!), new Date())).length;
+    const todayCompleted = updatedTasks.filter(t => t.status === 'completed' && t.completedAt && isSameDay(new Date(t.completedAt), new Date())).length;
     if (todayCompleted >= 10) {
         newBadges.add('SPEED_RUNNER');
     }
@@ -102,70 +266,120 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return Array.from(newBadges);
   }, []);
 
-  const updateTaskStatus = useCallback((taskId: string, status: TaskStatus) => {
-    setTasks(prevTasks => {
-      const newTasks = [...prevTasks];
-      const taskIndex = newTasks.findIndex(t => t.id === taskId);
-      if (taskIndex === -1) return prevTasks;
-
-      const task = newTasks[taskIndex];
-      const oldStatus = task.status;
-      task.status = status;
+  const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
       
-      let xpChange = 0;
+      if (!taskDoc.exists()) return;
+
+      const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
+      const oldStatus = task.status;
+      
+      const updateData: any = { status };
       if (status === 'completed' && oldStatus !== 'completed') {
-        task.completedAt = new Date().toISOString();
-        xpChange = task.xpReward;
+        updateData.completedAt = new Date().toISOString();
       } else if (oldStatus === 'completed' && status !== 'completed') {
-        xpChange = -task.xpReward;
-        task.completedAt = undefined;
+        updateData.completedAt = null;
       }
 
-      if (xpChange !== 0 && task.studentId) {
-        setStudents(prevStudents => {
-          const prevStudent = prevStudents[task.studentId];
-          if (!prevStudent) return prevStudents;
+      await updateDoc(taskRef, updateData);
+
+      // Update student XP
+      if (task.studentId) {
+        const studentRef = doc(db, 'students', task.studentId);
+        const studentDoc = await getDoc(studentRef);
+        
+        if (studentDoc.exists()) {
+          const studentData = studentDoc.data() as Student;
+          let xpChange = 0;
           
-          const newStudent = { ...prevStudent, totalXP: prevStudent.totalXP + xpChange };
-          const newBadges = status === 'completed' ? checkAchievements(newStudent, newTasks.filter(t => t.studentId === task.studentId), task) : prevStudent.badges;
-          return { ...prevStudents, [task.studentId]: { ...newStudent, badges: newBadges as BadgeKey[] } };
-        });
+          if (status === 'completed' && oldStatus !== 'completed') {
+            xpChange = task.xpReward;
+          } else if (oldStatus === 'completed' && status !== 'completed') {
+            xpChange = -task.xpReward;
+          }
+
+          if (xpChange !== 0) {
+            const newXP = studentData.totalXP + xpChange;
+            const newStudent = { ...studentData, totalXP: newXP };
+            const newBadges = status === 'completed' ? checkAchievements(newStudent, tasks, task) : studentData.badges;
+            
+            await updateDoc(studentRef, {
+              totalXP: newXP,
+              badges: newBadges,
+            });
+          }
+        }
       }
-
-      return newTasks;
-    });
-  }, [setTasks, setStudents, checkAchievements]);
-
-  const addTask = useCallback((task: Omit<Task, 'id' | 'status' | 'studentId'>, studentId?: string) => {
-    const targetStudentId = studentId || (currentUser && currentUser.role === 'student' ? Object.keys(students).find(sId => students[sId].userId === currentUser.id) : undefined);
-    if (!targetStudentId) return;
-    
-    const newTask: Task = {
-      ...task,
-      id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      status: 'pending',
-      studentId: targetStudentId,
-    };
-    setTasks(prev => [...prev, newTask]);
-  }, [currentUser, students, setTasks]);
-  
-  const addReward = (reward: Omit<Reward, 'id' | 'redeemed'>) => {
-    const newReward: Reward = {
-      ...reward,
-      id: `reward_${Date.now()}`,
-      redeemed: false,
-    };
-    setRewards(prev => [...prev, newReward]);
-  };
-
-  const redeemReward = useCallback((rewardId: string) => {
-    if (!student) return;
-    const reward = rewards.find(r => r.id === rewardId);
-    if (reward && !reward.redeemed && student.totalXP >= reward.xpCost) {
-      setStudents(prev => ({ ...prev, [student.id]: { ...prev[student.id], totalXP: prev[student.id].totalXP - reward.xpCost } }));
-      setRewards(prev => prev.map(r => r.id === rewardId ? {...r, redeemed: true} : r));
+    } catch (error) {
+      console.error('Error updating task status:', error);
     }
-  }, [student, rewards, setStudents, setRewards]);
+  }, [tasks, checkAchievements]);
+
+  const addTask = useCallback(async (task: Omit<Task, 'id' | 'status' | 'studentId'>, studentId?: string) => {
+    try {
+      const targetStudentId = studentId || (currentUser && currentUser.role === 'student' ? Object.keys(students).find(sId => students[sId].userId === currentUser.id) : undefined);
+      if (!targetStudentId) return;
+      
+      const newTask: Omit<Task, 'id'> = {
+        ...task,
+        status: 'pending',
+        studentId: targetStudentId,
+      };
+      
+      const taskRef = doc(collection(db, 'tasks'));
+      await setDoc(taskRef, {
+        ...newTask,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error adding task:', error);
+    }
+  }, [currentUser, students]);
+
+  const addReward = useCallback(async (reward: Omit<Reward, 'id' | 'redeemed'>) => {
+    try {
+      const newReward: Omit<Reward, 'id'> = {
+        ...reward,
+        redeemed: false,
+      };
+      
+      const rewardRef = doc(collection(db, 'rewards'));
+      await setDoc(rewardRef, {
+        ...newReward,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error adding reward:', error);
+    }
+  }, []);
+
+  const redeemReward = useCallback(async (rewardId: string) => {
+    if (!student) return;
+    
+    try {
+      const rewardRef = doc(db, 'rewards', rewardId);
+      const rewardDoc = await getDoc(rewardRef);
+      
+      if (!rewardDoc.exists()) return;
+      
+      const reward = { ...rewardDoc.data(), id: rewardDoc.id } as Reward;
+      
+      if (reward.redeemed || student.totalXP < reward.xpCost) return;
+
+      const studentRef = doc(db, 'students', student.id);
+      await updateDoc(studentRef, {
+        totalXP: student.totalXP - reward.xpCost,
+      });
+
+      await updateDoc(rewardRef, {
+        redeemed: true,
+      });
+    } catch (error) {
+      console.error('Error redeeming reward:', error);
+    }
+  }, [student]);
 
   useEffect(() => {
     if (!student) return;
@@ -189,17 +403,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         newStreak = 0;
       }
 
-      setStudents(prev => ({
-        ...prev,
-        [student.id]: {
-          ...prev[student.id],
-          currentStreak: newStreak,
-          longestStreak: Math.max(prev[student.id].longestStreak, newStreak),
-          lastLogin: today.toISOString()
-        }
-      }));
+      const studentRef = doc(db, 'students', student.id);
+      updateDoc(studentRef, {
+        currentStreak: newStreak,
+        longestStreak: Math.max(student.longestStreak, newStreak),
+        lastLogin: today.toISOString(),
+      }).catch(console.error);
     }
-  }, [student, tasks, setStudents]);
+  }, [student, tasks]);
 
   const getStudentById = useCallback((studentId: string) => {
     return students[studentId] || null;
@@ -229,6 +440,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       redeemReward,
       getStudentById,
       getTasksForStudent,
+      loading,
     }}>
       {children}
     </AppContext.Provider>

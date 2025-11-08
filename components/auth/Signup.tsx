@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import Card, { CardHeader, CardContent } from '../common/Card';
 import { motion } from 'framer-motion';
 import type { UserRole } from '../../types';
 
@@ -17,62 +16,70 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
   const [adminToken, setAdminToken] = useState('');
   const [error, setError] = useState('');
   const [successToken, setSuccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessToken(null);
+    setIsLoading(true);
     
-    const result = signup(email, name, password, role, role === 'student' ? adminToken : undefined);
-    
-    if (result.success) {
-      if (role === 'admin' && result.token) {
-        setSuccessToken(result.token);
+    try {
+      const result = await signup(email, name, password, role, role === 'student' ? adminToken : undefined);
+      
+      if (result.success) {
+        if (role === 'admin' && result.token) {
+          setSuccessToken(result.token);
+        }
+      } else {
+        setError(result.error || 'Unable to create account. Please try again.');
       }
-    } else {
-      setError(result.error || 'Signup failed');
+    } catch (err) {
+      setError('Something went wrong. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const commonInputClass = "w-full p-3 rounded-md bg-light-background dark:bg-dark-background/50 border border-light-border dark:border-dark-border focus:outline-none focus:ring-2 focus:ring-primary";
+  const commonInputClass = "w-full p-3 rounded-lg bg-gray-800/60 backdrop-blur-sm border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-md mx-auto mt-8"
-    >
-      <Card>
-        <CardHeader>
-          <h2 className="text-2xl font-bold text-center">Sign Up</h2>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-gray-800/80 backdrop-blur-sm rounded-2xl border border-gray-700 shadow-2xl p-8">
+          <h2 className="text-3xl font-bold text-center text-white mb-6">Sign Up</h2>
+          
           {successToken ? (
             <div className="space-y-4">
-              <div className="p-4 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+              <div className="p-4 rounded-lg bg-green-900/30 border border-green-700 text-green-300">
                 <p className="font-semibold mb-2">Account created successfully!</p>
-                <p className="text-sm mb-3">Your unique admin token is:</p>
-                <div className="bg-white dark:bg-dark-background p-3 rounded-md border-2 border-green-500">
-                  <p className="text-2xl font-mono font-bold text-center text-primary">{successToken}</p>
+                <p className="text-sm mb-3 text-gray-300">Your unique admin token is:</p>
+                <div className="bg-gray-900/50 p-4 rounded-lg border-2 border-orange-500">
+                  <p className="text-3xl font-mono font-bold text-center text-orange-500">{successToken}</p>
                 </div>
-                <p className="text-xs mt-2 text-center">Share this token with students so they can join under your account.</p>
+                <p className="text-xs mt-3 text-center text-gray-400">Share this token with students so they can join under your account.</p>
               </div>
               <button
                 onClick={() => window.location.reload()}
-                className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-primary-dark transition-colors"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/30"
               >
                 Continue to Dashboard
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="p-3 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+                <div className="p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-300 text-sm">
                   {error}
                 </div>
               )}
+              
               <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Name</label>
                 <input
                   type="text"
                   value={name}
@@ -82,8 +89,9 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                   required
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Email</label>
                 <input
                   type="email"
                   value={email}
@@ -93,8 +101,9 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                   required
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium mb-1">Password</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Password</label>
                 <input
                   type="password"
                   value={password}
@@ -104,16 +113,17 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                   required
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium mb-1">I want to sign up as</label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <label className="block text-sm font-medium mb-2 text-gray-300">I want to sign up as</label>
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setRole('student')}
-                    className={`p-3 rounded-md border-2 transition-colors ${
+                    className={`p-3 rounded-lg border-2 transition-all font-semibold ${
                       role === 'student'
-                        ? 'border-primary bg-primary/10 text-primary font-semibold'
-                        : 'border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background/50'
+                        ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-lg shadow-orange-500/20'
+                        : 'border-gray-700 bg-gray-800/50 text-gray-400 hover:border-gray-600'
                     }`}
                   >
                     Student
@@ -121,19 +131,20 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                   <button
                     type="button"
                     onClick={() => setRole('admin')}
-                    className={`p-3 rounded-md border-2 transition-colors ${
+                    className={`p-3 rounded-lg border-2 transition-all font-semibold ${
                       role === 'admin'
-                        ? 'border-primary bg-primary/10 text-primary font-semibold'
-                        : 'border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background/50'
+                        ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-lg shadow-orange-500/20'
+                        : 'border-gray-700 bg-gray-800/50 text-gray-400 hover:border-gray-600'
                     }`}
                   >
                     Admin
                   </button>
                 </div>
               </div>
+              
               {role === 'student' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Admin Token</label>
+                  <label className="block text-sm font-medium mb-2 text-gray-300">Admin Token</label>
                   <input
                     type="text"
                     value={adminToken}
@@ -143,34 +154,36 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                     maxLength={5}
                     required
                   />
-                  <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     Enter the token provided by your admin
                   </p>
                 </div>
               )}
+              
               <button
                 type="submit"
-                className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-primary-dark transition-colors"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-500/30"
               >
-                Sign Up
+                {isLoading ? 'Creating account...' : 'Sign Up'}
               </button>
-              <p className="text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
+              
+              <p className="text-center text-sm text-gray-400">
                 Already have an account?{' '}
                 <button
                   type="button"
                   onClick={onSwitchToLogin}
-                  className="text-primary hover:underline font-semibold"
+                  className="text-orange-400 hover:text-orange-300 font-semibold hover:underline transition-colors"
                 >
                   Login
                 </button>
               </p>
             </form>
           )}
-        </CardContent>
-      </Card>
-    </motion.div>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
 export default Signup;
-

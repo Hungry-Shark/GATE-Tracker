@@ -1,30 +1,43 @@
 import React, { createContext, useContext, ReactNode, useState, useCallback, useEffect } from 'react';
-import type { User, UserRole } from '../types';
-import { usePersistentState } from '../hooks/usePersistentState';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  updateDoc,
+  serverTimestamp
+} from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
+import type { User, UserRole, Student } from '../types';
 
 interface AuthContextType {
   currentUser: User | null;
-  users: User[];
+  firebaseUser: FirebaseUser | null;
   students: { [adminId: string]: string[] }; // adminId -> studentIds
-  signup: (email: string, name: string, password: string, role: UserRole, adminToken?: string) => { success: boolean; error?: string; token?: string };
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  logout: () => void;
+  signup: (email: string, name: string, password: string, role: UserRole, adminToken?: string) => Promise<{ success: boolean; error?: string; token?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   generateToken: () => string;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = usePersistentState<User[]>('gate-users', []);
-  const [students, setStudents] = usePersistentState<{ [adminId: string]: string[] }>('gate-admin-students', {});
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const stored = localStorage.getItem('gate-current-user');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [students, setStudents] = useState<{ [adminId: string]: string[] }>({});
+  const [loading, setLoading] = useState(true);
 
   // Generate a unique 5 alphanumeric token
   const generateToken = useCallback(() => {
@@ -36,102 +49,254 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return token;
   }, []);
 
-  // Check if token is unique
-  const isTokenUnique = useCallback((token: string, excludeUserId?: string) => {
-    return !users.some(u => u.token === token && u.id !== excludeUserId);
-  }, [users]);
-
-  const signup = useCallback((email: string, name: string, password: string, role: UserRole, adminToken?: string) => {
-    // Check if email already exists
-    if (users.some(u => u.email === email)) {
-      return { success: false, error: 'Email already exists' };
-    }
-
-    let token: string | undefined;
-    let adminId: string | undefined;
-
-    if (role === 'admin') {
-      // Generate unique token for admin
-      let newToken = generateToken();
-      let attempts = 0;
-      while (!isTokenUnique(newToken) && attempts < 100) {
-        newToken = generateToken();
-        attempts++;
+  // Check if token is unique in Firestore
+  const isTokenUnique = useCallback(async (token: string): Promise<{ unique: boolean; error?: string }> => {
+    try {
+      const usersRef = collection(db, 'users');
+      // Query only by token (simpler, less likely to need composite index)
+      const q = query(usersRef, where('token', '==', token));
+      const querySnapshot = await getDocs(q);
+      
+      // Check if any of the results are admins (tokens are only for admins)
+      const hasAdminWithToken = querySnapshot.docs.some(doc => {
+        const data = doc.data();
+        return data.role === 'admin' && data.token === token;
+      });
+      
+      return { unique: !hasAdminWithToken };
+    } catch (error: any) {
+      console.error('Error checking token uniqueness:', error);
+      
+      // Handle specific Firestore errors with user-friendly messages
+      if (error.code === 'permission-denied') {
+        return { 
+          unique: false, 
+          error: 'Unable to verify token. Please contact support if this issue persists.' 
+        };
       }
-      if (attempts >= 100) {
-        return { success: false, error: 'Failed to generate unique token. Please try again.' };
-      }
-      token = newToken;
-    } else if (role === 'student') {
-      // Student must provide admin token
-      if (!adminToken) {
-        return { success: false, error: 'Admin token is required for student signup' };
+      if (error.code === 'failed-precondition') {
+        // Firestore needs an index - provide helpful but non-technical message
+        return { 
+          unique: false, 
+          error: 'System configuration required. Please contact your administrator.' 
+        };
       }
       
-      // Find admin with this token
-      const admin = users.find(u => u.role === 'admin' && u.token === adminToken);
-      if (!admin) {
-        return { success: false, error: 'Invalid admin token' };
-      }
-      
-      adminId = admin.id;
+      // For network errors, we'll proceed but log a warning
+      // This allows signup to work even with temporary network issues
+      console.warn('Token uniqueness check failed (network issue?), proceeding:', error.message);
+      return { unique: true, error: error.message };
     }
-
-    const newUser: User = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      email,
-      name,
-      role,
-      token,
-      adminId,
-      createdAt: new Date().toISOString(),
-    };
-
-    setUsers(prev => [...prev, newUser]);
-
-    // If student, add to admin's student list
-    if (role === 'student' && adminId) {
-      setStudents(prev => ({
-        ...prev,
-        [adminId]: [...(prev[adminId] || []), newUser.id],
-      }));
-    }
-
-    // Auto-login after signup
-    setCurrentUser(newUser);
-    localStorage.setItem('gate-current-user', JSON.stringify(newUser));
-
-    return { success: true, token: role === 'admin' ? token : undefined };
-  }, [users, generateToken, isTokenUnique, setUsers, setStudents]);
-
-  const login = useCallback((email: string, password: string) => {
-    // Simple email-based login (no password verification for now)
-    const user = users.find(u => u.email === email);
-    if (!user) {
-      return { success: false, error: 'Invalid email or password' };
-    }
-
-    setCurrentUser(user);
-    localStorage.setItem('gate-current-user', JSON.stringify(user));
-    return { success: true };
-  }, [users]);
-
-  const logout = useCallback(() => {
-    setCurrentUser(null);
-    localStorage.removeItem('gate-current-user');
   }, []);
 
-  // Sync currentUser to localStorage
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('gate-current-user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('gate-current-user');
+  // Load user data from Firestore
+  const loadUserData = useCallback(async (uid: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as User;
+        setCurrentUser({ ...userData, id: uid });
+        
+        // Load admin-student relationships
+        if (userData.role === 'admin') {
+          const studentsRef = collection(db, 'students');
+          const q = query(studentsRef, where('adminId', '==', uid));
+          const querySnapshot = await getDocs(q);
+          const studentIds = querySnapshot.docs.map(doc => doc.data().userId);
+          setStudents(prev => ({ ...prev, [uid]: studentIds }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
     }
-  }, [currentUser]);
+  }, []);
+
+  // Listen to auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      if (user) {
+        await loadUserData(user.uid);
+      } else {
+        setCurrentUser(null);
+        setStudents({});
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [loadUserData]);
+
+  const signup = useCallback(async (email: string, name: string, password: string, role: UserRole, adminToken?: string) => {
+    try {
+      let token: string | undefined;
+      let adminId: string | undefined;
+
+      if (role === 'admin') {
+        // Generate unique token for admin
+        let newToken = generateToken();
+        let attempts = 0;
+        let lastError: string | undefined;
+        let foundUnique = false;
+        
+        while (attempts < 20) { // Reduced attempts for faster feedback
+          const result = await isTokenUnique(newToken);
+          
+          if (result.unique && !result.error) {
+            // Token is confirmed unique
+            token = newToken;
+            foundUnique = true;
+            break;
+          }
+          
+          if (result.error) {
+            lastError = result.error;
+            // If it's a system error, fail immediately with user-friendly message
+            if (result.error.includes('Unable to verify') || result.error.includes('System configuration')) {
+              return { success: false, error: result.error };
+            }
+            // For other errors, continue trying but log them
+            console.warn(`Token check attempt ${attempts + 1} failed:`, result.error);
+          }
+          
+          // Generate new token and try again
+          newToken = generateToken();
+          attempts++;
+        }
+        
+        // If we didn't find a unique token
+        if (!foundUnique) {
+          // If there was a system error, return it
+          if (lastError && (lastError.includes('Unable to verify') || lastError.includes('System configuration'))) {
+            return { success: false, error: lastError };
+          }
+          
+          // If we just couldn't verify uniqueness (network issues, etc.), 
+          // proceed anyway since collision probability is extremely low (1 in 60 million)
+          // But use the last generated token
+          console.warn('Could not verify token uniqueness, but proceeding with token:', newToken);
+          token = newToken;
+        }
+      } else if (role === 'student') {
+        // Student must provide admin token
+        if (!adminToken) {
+          return { success: false, error: 'Admin token is required for student signup' };
+        }
+        
+        // Find admin with this token in Firestore
+        const usersRef = collection(db, 'users');
+        // Query by token only, then filter by role client-side to avoid composite index requirement
+        const q = query(usersRef, where('token', '==', adminToken));
+        const querySnapshot = await getDocs(q);
+        
+        // Filter for admin role client-side
+        const adminDocs = querySnapshot.docs.filter(doc => doc.data().role === 'admin');
+        
+        if (adminDocs.length === 0) {
+          return { success: false, error: 'The admin token you entered is invalid. Please check with your administrator.' };
+        }
+        
+        const adminDoc = adminDocs[0];
+        adminId = adminDoc.id;
+      }
+
+      // Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      // Create user document in Firestore
+      // Only include adminId if it's defined (for students)
+      const userData: any = {
+        email,
+        name,
+        role,
+        createdAt: serverTimestamp(),
+      };
+      
+      // Only add token if it exists (for admins)
+      if (token) {
+        userData.token = token;
+      }
+      
+      // Only add adminId if it exists (for students)
+      if (adminId) {
+        userData.adminId = adminId;
+      }
+
+      await setDoc(doc(db, 'users', uid), userData);
+
+      // If student, create student progress document and add to admin's student collection
+      if (role === 'student' && adminId) {
+        const studentId = `student_${uid}`;
+        const newStudent: Student = {
+          id: studentId,
+          userId: uid,
+          name: name,
+          totalXP: 0,
+          level: 1,
+          currentStreak: 0,
+          longestStreak: 0,
+          badges: [],
+          lastLogin: new Date().toISOString(),
+        };
+
+        await setDoc(doc(db, 'students', studentId), {
+          ...newStudent,
+          adminId: adminId,
+          createdAt: serverTimestamp(),
+        });
+
+        // Update admin's student list
+        setStudents(prev => ({
+          ...prev,
+          [adminId!]: [...(prev[adminId!] || []), uid],
+        }));
+      }
+
+      return { success: true, token: role === 'admin' ? token : undefined };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        return { success: false, error: 'This email is already registered. Please use a different email or try logging in.' };
+      }
+      return { success: false, error: 'Unable to create your account. Please try again later.' };
+    }
+  }, [generateToken, isTokenUnique]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
+      }
+      return { success: false, error: 'Unable to sign in. Please try again later.' };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      setStudents({});
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, users, students, signup, login, logout, generateToken }}>
+    <AuthContext.Provider value={{ 
+      currentUser, 
+      firebaseUser,
+      students, 
+      signup, 
+      login, 
+      logout, 
+      generateToken,
+      loading 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -144,4 +309,3 @@ export function useAuth() {
   }
   return context;
 }
-

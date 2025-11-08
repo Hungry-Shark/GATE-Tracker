@@ -7,10 +7,13 @@ import AdminDashboard from './components/dashboard/AdminDashboard';
 import Header from './components/common/Header';
 import Login from './components/auth/Login';
 import Signup from './components/auth/Signup';
+import LandingPage from './components/landing/LandingPage';
+
+type View = 'landing' | 'login' | 'signup';
 
 function AppContent() {
-  const { currentUser } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const { currentUser, loading } = useAuth();
+  const [view, setView] = useState<View>('landing');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
         return localStorage.getItem('theme') === 'dark' || 
@@ -29,25 +32,59 @@ function AppContent() {
     }
   }, [isDarkMode]);
 
+  // Listen for navigation events from landing page
+  useEffect(() => {
+    const handleNavigate = (e: CustomEvent) => {
+      const path = (e.detail as { path: string }).path;
+      if (path === 'login') setView('login');
+      else if (path === 'signup') setView('signup');
+    };
+
+    window.addEventListener('navigate', handleNavigate as EventListener);
+    return () => window.removeEventListener('navigate', handleNavigate as EventListener);
+  }, []);
+
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  if (!currentUser) {
+  // Show loading state
+  if (loading) {
     return (
-      <div className="min-h-screen font-sans text-light-text dark:text-dark-text bg-light-background dark:bg-dark-background transition-colors duration-300">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {isLogin ? (
-            <Login onSwitchToSignup={() => setIsLogin(false)} />
-          ) : (
-            <Signup onSwitchToLogin={() => setIsLogin(true)} />
-          )}
+      <div className="min-h-screen font-sans text-light-text dark:text-dark-text bg-light-background dark:bg-dark-background transition-colors duration-300 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 animate-pulse">
+            G
+          </div>
+          <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading...</p>
         </div>
       </div>
     );
   }
 
+  // Show landing page if not authenticated and on landing view
+  if (!currentUser && view === 'landing') {
+    return (
+      <div className="min-h-screen font-sans text-light-text dark:text-dark-text bg-light-background dark:bg-dark-background transition-colors duration-300">
+        <LandingPage />
+      </div>
+    );
+  }
+
+  // Show auth forms if not authenticated (Login/Signup components handle their own backgrounds)
+  if (!currentUser) {
+    return (
+      <>
+        {view === 'login' ? (
+          <Login onSwitchToSignup={() => setView('signup')} />
+        ) : (
+          <Signup onSwitchToLogin={() => setView('login')} />
+        )}
+      </>
+    );
+  }
+
   return (
     <AppProvider>
-      <div className="min-h-screen font-sans text-light-text dark:text-dark-text bg-light-background dark:bg-dark-background transition-colors duration-300">
+      <div className="min-h-screen font-sans text-white bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <Header 
           isDarkMode={isDarkMode} 
           onToggleTheme={toggleTheme} 

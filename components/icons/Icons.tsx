@@ -101,3 +101,9 @@ export const TrophyIcon = (props: IconProps) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9a9.75 9.75 0 1011.25 0h-2.25a.75.75 0 00-.75.75v1.5a.75.75 0 00.75.75h2.25a9.75 9.75 0 00-11.25 0h2.25a.75.75 0 00.75-.75v-1.5a.75.75 0 00-.75-.75h-2.25m9 0v-2.25a3.375 3.375 0 00-3.375-3.375h-1.5a3.375 3.375 0 00-3.375 3.375v2.25m9 0h-9" />
   </svg>
 );
+
+export const ArrowRightIcon = (props: IconProps) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+  </svg>
+);
