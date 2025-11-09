@@ -28,7 +28,9 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     setIsLoading(true);
     
     try {
-      const result = await signup(email, name, password, role, role === 'student' ? adminToken : undefined);
+      // Normalize token before passing to signup
+      const normalizedToken = role === 'student' && adminToken ? adminToken.trim().toUpperCase() : undefined;
+      const result = await signup(email, name, password, role, normalizedToken);
       
       if (result.success) {
         if (role === 'admin' && result.token) {
@@ -167,7 +169,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                   <input
                     type="text"
                     value={adminToken}
-                    onChange={e => setAdminToken(e.target.value.toUpperCase())}
+                    onChange={e => setAdminToken(e.target.value.trim().toUpperCase().slice(0, 5))}
                     className={commonInputClass}
                     placeholder="Enter 5-character token"
                     maxLength={5}

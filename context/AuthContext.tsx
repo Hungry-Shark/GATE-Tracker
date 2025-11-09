@@ -213,21 +213,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: 'Admin token is required for student signup' };
         }
         
-        // Find admin with this token in Firestore
-        const usersRef = collection(db, 'users');
-        // Query by token only, then filter by role client-side to avoid composite index requirement
-        const q = query(usersRef, where('token', '==', adminToken));
-        const querySnapshot = await getDocs(q);
+        // Normalize token: trim whitespace and convert to uppercase
+        const normalizedToken = adminToken.trim().toUpperCase();
         
-        // Filter for admin role client-side
-        const adminDocs = querySnapshot.docs.filter(doc => doc.data().role === 'admin');
-        
-        if (adminDocs.length === 0) {
-          return { success: false, error: 'The admin token you entered is invalid. Please check with your administrator.' };
+        if (normalizedToken.length !== 5) {
+          return { success: false, error: 'Admin token must be exactly 5 characters. Please check with your administrator.' };
         }
         
-        const adminDoc = adminDocs[0];
-        adminId = adminDoc.id;
+        try {
+          // Find admin with this token in Firestore
+          const usersRef = collection(db, 'users');
+          // Query by token only, then filter by role client-side to avoid composite index requirement
+          const q = query(usersRef, where('token', '==', normalizedToken));
+          const querySnapshot = await getDocs(q);
+          
+          // Debug: Log all query results
+          console.log('Token validation query results:', {
+            providedToken: normalizedToken,
+            totalDocs: querySnapshot.docs.length,
+            docs: querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              role: doc.data().role,
+              token: doc.data().token,
+              tokenMatch: doc.data().token === normalizedToken,
+              tokenUpperCase: doc.data().token?.toUpperCase(),
+              normalizedTokenUpperCase: normalizedToken.toUpperCase()
+            }))
+          });
+          
+          // Filter for admin role client-side
+          // Also normalize tokens for comparison (handle case differences)
+          const adminDocs = querySnapshot.docs.filter(doc => {
+            const data = doc.data();
+            const docToken = data.token?.toString().trim().toUpperCase() || '';
+            return data.role === 'admin' && docToken === normalizedToken;
+          });
+          
+          if (adminDocs.length === 0) {
+            console.error('Token validation failed - no matching admin found:', {
+              providedToken: normalizedToken,
+              queryResults: querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                role: doc.data().role,
+                token: doc.data().token,
+                tokenType: typeof doc.data().token
+              }))
+            });
+            return { success: false, error: 'The admin token you entered is invalid. Please check with your administrator.' };
+          }
+          
+          const adminDoc = adminDocs[0];
+          adminId = adminDoc.id;
+          console.log('Token validation successful, adminId:', adminId);
+        } catch (error: any) {
+          console.error('Error validating admin token:', error);
+          // Check if it's a permission error
+          if (error.code === 'permission-denied') {
+            return { success: false, error: 'Unable to verify token. Please check your Firestore security rules.' };
+          }
+          return { success: false, error: 'Unable to verify admin token. Please try again later.' };
+        }
       }
 
       // Create Firebase Auth user

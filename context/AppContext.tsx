@@ -58,7 +58,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentUser && currentUser.role === 'student' && !loading) {
       const existingStudent = Object.values(students).find(s => s.userId === currentUser.id);
-      if (!existingStudent) {
+      if (!existingStudent && currentUser.adminId) {
+        // Only create student if adminId exists (student was properly registered)
         const newStudent: Student = {
           id: `student_${currentUser.id}`,
           userId: currentUser.id,
@@ -71,9 +72,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           lastLogin: new Date().toISOString(),
         };
         
-        // Save to Firestore
+        // Save to Firestore with adminId
         setDoc(doc(db, 'students', newStudent.id), {
           ...newStudent,
+          adminId: currentUser.adminId,
           createdAt: serverTimestamp(),
         }).catch(console.error);
       }
