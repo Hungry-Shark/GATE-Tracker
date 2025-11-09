@@ -44,31 +44,31 @@ const ProgressMonitor: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-lg font-bold">Student Progress Monitor</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white transition-colors duration-300">Student Progress Monitor</h2>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           {stats.map(stat => (
-            <div key={stat.label} className="p-4 rounded-lg bg-light-background dark:bg-dark-background/50 text-center">
-              <p className="text-2xl font-bold font-mono text-primary">{stat.value}</p>
-              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{stat.label}</p>
+            <div key={stat.label} className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-center transition-colors duration-300">
+              <p className="text-2xl font-bold font-mono text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">{stat.value}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">{stat.label}</p>
             </div>
           ))}
         </div>
         <div>
-          <h3 className="font-semibold mb-2">Recent Activity</h3>
+          <h3 className="font-semibold mb-2 text-gray-900 dark:text-white transition-colors duration-300">Recent Activity</h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {recentActivities.length > 0 ? recentActivities.map(task => (
-              <div key={task.id} className="p-3 rounded-lg bg-light-background dark:bg-dark-background/50 flex justify-between items-center text-sm">
+              <div key={task.id} className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 flex justify-between items-center text-sm transition-colors duration-300">
                 <div>
-                  <p className="font-medium">Completed: <span className="text-light-text dark:text-dark-text">{task.title}</span></p>
-                  <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{task.subject}</p>
+                  <p className="font-medium text-gray-900 dark:text-white transition-colors duration-300">Completed: <span className="text-gray-900 dark:text-white transition-colors duration-300">{task.title}</span></p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">{task.subject}</p>
                 </div>
-                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">
                   {formatDistanceToNow(new Date(task.completedAt!), { addSuffix: true })}
                 </span>
               </div>
-            )) : <p className="text-center text-light-text-secondary dark:text-dark-text-secondary">No completed tasks yet.</p>}
+            )) : <p className="text-center text-gray-600 dark:text-gray-400 transition-colors duration-300">No completed tasks yet.</p>}
           </div>
         </div>
       </CardContent>

@@ -34,7 +34,7 @@ const StudentDashboard: React.FC = () => {
     return (
       <Card>
         <div className="p-8 text-center">
-          <p className="text-light-text-secondary dark:text-dark-text-secondary">
+          <p className="text-gray-400">
             Loading your dashboard...
           </p>
         </div>

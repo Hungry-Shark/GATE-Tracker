@@ -1,9 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon } from '../icons/Icons';
+import { ArrowRightIcon, SunIcon, MoonIcon } from '../icons/Icons';
+import { useTheme } from '../../context/ThemeContext';
+import { AnimatePresence } from 'framer-motion';
 
 const LandingPage: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     // Ensure video plays and loops
@@ -21,7 +24,7 @@ const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black">
+    <div className="relative min-h-screen overflow-hidden bg-white dark:bg-black transition-colors duration-300">
       {/* Background Video */}
       <div className="absolute inset-0 z-0">
         <video
@@ -36,7 +39,7 @@ const LandingPage: React.FC = () => {
           <source src="/bg-video/bg-video.mp4" type="video/mp4" />
         </video>
         {/* Overlay with glowing orange accents */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-black/90 to-black/80">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-white/80 to-white/70 dark:from-black dark:via-black/90 dark:to-black/80 transition-colors duration-300">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-500/20 via-transparent to-transparent"></div>
           <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-orange-500/10 via-transparent to-transparent"></div>
         </div>
@@ -53,22 +56,38 @@ const LandingPage: React.FC = () => {
                 <span className="absolute -top-1 -right-1 text-xs">★</span>
               </span>
             </div>
-            <span className="text-white font-bold text-xl">GATE Tracker</span>
+            <span className="text-gray-900 dark:text-white font-bold text-lg font-mono transition-colors duration-300">GATE Tracker</span>
           </div>
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-8">
-            <a href="#home" className="text-gray-300 hover:text-white transition-colors">Home</a>
-            <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
-            <a href="#about" className="text-gray-300 hover:text-white transition-colors">About</a>
-            <a href="#contact" className="text-gray-300 hover:text-white transition-colors">Contact</a>
+            <a href="#home" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-mono text-sm">Home</a>
+            <a href="#features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-mono text-sm">Features</a>
+            <a href="#about" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-mono text-sm">About</a>
+            <a href="#contact" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-mono text-sm">Contact</a>
           </div>
 
           {/* CTA Buttons */}
           <div className="flex items-center gap-4">
             <button
+              onClick={toggleTheme}
+              className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/50 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all duration-300"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={isDarkMode ? 'moon' : 'sun'}
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 20, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {isDarkMode ? <SunIcon className="w-5 h-5 text-yellow-400" /> : <MoonIcon className="w-5 h-5 text-orange-400" />}
+                </motion.div>
+              </AnimatePresence>
+            </button>
+            <button
               onClick={() => navigate('signup')}
-              className="hidden sm:flex items-center gap-2 bg-gray-900/80 backdrop-blur-sm border border-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-all"
+              className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-all font-mono text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -77,7 +96,7 @@ const LandingPage: React.FC = () => {
             </button>
             <button
               onClick={() => navigate('login')}
-              className="flex items-center gap-2 bg-transparent border border-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-900/50 transition-all"
+              className="flex items-center gap-2 bg-transparent border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all font-mono text-sm"
             >
               Sign In
               <ArrowRightIcon className="w-4 h-4" />
@@ -101,30 +120,30 @@ const LandingPage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="inline-block mb-6"
           >
-            <span className="inline-flex items-center px-4 py-2 rounded-full bg-gray-900/80 backdrop-blur-sm border border-gray-700 text-white text-sm font-medium">
+            <span className="inline-flex items-center px-4 py-2 rounded-full bg-gray-900/80 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-mono transition-colors duration-300">
               BEST GATE PREP TOOL 2024
             </span>
           </motion.div>
 
           {/* Main Heading */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-6 leading-tight">
-            <span className="text-white">Redefining the Future of </span>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-6 leading-tight font-kregan">
+            <span className="text-gray-900 dark:text-white transition-colors duration-300">Redefining the Future of </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
               GATE
             </span>
-            <span className="text-white"> Preparation</span>
+            <span className="text-gray-900 dark:text-white transition-colors duration-300"> Preparation</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
               Tracking
             </span>
-            <span className="text-white"> and </span>
+            <span className="text-gray-900 dark:text-white transition-colors duration-300"> and </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
               Accountability
             </span>
           </h1>
 
           {/* Description */}
-          <p className="text-lg md:text-xl text-gray-300 mb-10 leading-relaxed max-w-3xl mx-auto">
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 mb-10 leading-relaxed max-w-3xl mx-auto transition-colors duration-300 font-mono">
             Bridging cutting-edge technology and educational innovation, our next-generation GATE preparation tracker empowers students with greater control, progress tracking, and study efficiency.
           </p>
 
@@ -134,7 +153,7 @@ const LandingPage: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('signup')}
-              className="inline-flex items-center gap-3 bg-gray-900/80 backdrop-blur-sm border border-gray-700 text-white font-bold py-4 px-8 rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-orange-500/20"
+              className="inline-flex items-center gap-3 bg-gray-100 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-bold py-3 px-6 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-800 transition-all shadow-lg shadow-orange-500/20 font-mono text-sm"
             >
               Join Now!
             </motion.button>
@@ -158,10 +177,10 @@ const LandingPage: React.FC = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="p-6 rounded-2xl bg-gray-900/60 backdrop-blur-sm border border-gray-800 hover:border-orange-500/50 transition-all"
+            className="p-6 rounded-2xl bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border border-gray-200 dark:border-gray-800 hover:border-orange-500/50 transition-all duration-300"
           >
-            <h3 className="text-xl font-bold mb-2 text-white">Track Progress with Trust</h3>
-            <p className="text-sm text-gray-400 mb-4">Assured that you maintain full authority over your study data</p>
+            <h3 className="text-base font-bold mb-2 text-gray-900 dark:text-white transition-colors duration-300 font-mono">Track Progress with Trust</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-4 transition-colors duration-300 font-mono">Assured that you maintain full authority over your study data</p>
             {/* Network Diagram */}
             <div className="flex items-center justify-center gap-3 mt-6">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold border-2 border-purple-400">
@@ -185,9 +204,9 @@ const LandingPage: React.FC = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="p-6 rounded-2xl bg-gray-900/60 backdrop-blur-sm border border-gray-800 hover:border-orange-500/50 transition-all"
+            className="p-6 rounded-2xl bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border border-gray-200 dark:border-gray-800 hover:border-orange-500/50 transition-all duration-300"
           >
-            <h3 className="text-xl font-bold mb-2 text-white">Create Your Personal Study Dashboard</h3>
+            <h3 className="text-base font-bold mb-2 text-gray-900 dark:text-white transition-colors duration-300 font-mono">Create Your Personal Study Dashboard</h3>
             {/* Card Visual */}
             <div className="mt-6 space-y-3">
               <div className="flex items-center gap-3">
@@ -221,10 +240,10 @@ const LandingPage: React.FC = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
-            className="p-6 rounded-2xl bg-gray-900/60 backdrop-blur-sm border border-gray-800 hover:border-orange-500/50 transition-all"
+            className="p-6 rounded-2xl bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border border-gray-200 dark:border-gray-800 hover:border-orange-500/50 transition-all duration-300"
           >
-            <h3 className="text-xl font-bold mb-2 text-white">Join The Accountability System</h3>
-            <p className="text-sm text-gray-400">
+            <h3 className="text-base font-bold mb-2 text-gray-900 dark:text-white transition-colors duration-300 font-mono">Join The Accountability System</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300 font-mono">
               Whether you're a student looking to harness the power of structured learning or an educator seeking to track student progress, our platform provides the tools you need.
             </p>
             <div className="mt-6 flex items-center gap-2">
@@ -238,7 +257,7 @@ const LandingPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <span className="text-xs text-gray-400 ml-2">+1000 students</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400 ml-2 transition-colors duration-300 font-mono">+1000 students</span>
             </div>
           </motion.div>
         </div>

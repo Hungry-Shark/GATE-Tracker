@@ -5,32 +5,30 @@ import Card, { CardHeader, CardContent } from '../common/Card';
 
 const StudentList: React.FC = () => {
   const { students, getTasksForStudent } = useAppContext();
-  const { currentUser, students: adminStudents } = useAuth();
+  const { currentUser } = useAuth();
 
   // Get students assigned to current admin
+  // Since AppContext now queries students by adminId, we can use them directly
   const assignedStudents = useMemo(() => {
     if (!currentUser || currentUser.role !== 'admin') return [];
-    const studentIds = adminStudents[currentUser.id] || [];
-    return studentIds.map(id => {
-      const student = Object.values(students).find(s => s.userId === id);
-      return student;
-    }).filter(Boolean);
-  }, [currentUser, adminStudents, students]);
+    // Students in AppContext are already filtered by adminId via real-time listener
+    return Object.values(students).filter(s => s.adminId === currentUser.id);
+  }, [currentUser, students]);
 
   if (assignedStudents.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-bold">My Students</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white transition-colors duration-300">My Students</h2>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-light-text-secondary dark:text-dark-text-secondary py-4">
+          <p className="text-center text-gray-600 dark:text-gray-400 py-4 transition-colors duration-300">
             No students assigned yet. Share your admin token with students so they can join.
           </p>
           {currentUser?.token && (
-            <div className="mt-4 p-4 rounded-lg bg-light-background dark:bg-dark-background/50 border-2 border-primary">
-              <p className="text-sm font-medium mb-2">Your Admin Token:</p>
-              <p className="text-2xl font-mono font-bold text-center text-primary">{currentUser.token}</p>
+            <div className="mt-4 p-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 border-2 border-orange-500 transition-colors duration-300">
+              <p className="text-sm font-medium mb-2 text-gray-900 dark:text-white transition-colors duration-300">Your Admin Token:</p>
+              <p className="text-2xl font-mono font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">{currentUser.token}</p>
             </div>
           )}
         </CardContent>
@@ -41,7 +39,7 @@ const StudentList: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-lg font-bold">My Students ({assignedStudents.length})</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white transition-colors duration-300">My Students ({assignedStudents.length})</h2>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -53,33 +51,33 @@ const StudentList: React.FC = () => {
             return (
               <div
                 key={student.id}
-                className="p-4 rounded-lg bg-light-background dark:bg-dark-background/50 border border-light-border dark:border-dark-border"
+                className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 transition-colors duration-300"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="font-semibold text-lg">{student.name}</h3>
-                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white transition-colors duration-300">{student.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
                       Level {student.level} • {student.totalXP} XP
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">
                       {student.currentStreak} day streak
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                  <div className="p-2 rounded bg-primary/10">
-                    <p className="text-lg font-bold text-primary">{completedTasks}</p>
-                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Completed</p>
+                  <div className="p-2 rounded bg-orange-500/10">
+                    <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">{completedTasks}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Completed</p>
                   </div>
                   <div className="p-2 rounded bg-yellow-500/10">
-                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{pendingTasks}</p>
-                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Pending</p>
+                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400 transition-colors duration-300">{pendingTasks}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Pending</p>
                   </div>
                   <div className="p-2 rounded bg-green-500/10">
-                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{student.badges.length}</p>
-                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Badges</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400 transition-colors duration-300">{student.badges.length}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Badges</p>
                   </div>
                 </div>
               </div>
@@ -87,10 +85,10 @@ const StudentList: React.FC = () => {
           })}
         </div>
         {currentUser?.token && (
-          <div className="mt-4 p-4 rounded-lg bg-light-background dark:bg-dark-background/50 border-2 border-primary">
-            <p className="text-sm font-medium mb-2">Your Admin Token:</p>
-            <p className="text-2xl font-mono font-bold text-center text-primary">{currentUser.token}</p>
-            <p className="text-xs text-center text-light-text-secondary dark:text-dark-text-secondary mt-2">
+          <div className="mt-4 p-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 border-2 border-orange-500 transition-colors duration-300">
+            <p className="text-sm font-medium mb-2 text-gray-900 dark:text-white transition-colors duration-300">Your Admin Token:</p>
+            <p className="text-2xl font-mono font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">{currentUser.token}</p>
+            <p className="text-xs text-center text-gray-600 dark:text-gray-400 mt-2 transition-colors duration-300">
               Share this with students so they can join
             </p>
           </div>

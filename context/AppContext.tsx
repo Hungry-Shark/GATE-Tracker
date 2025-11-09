@@ -87,25 +87,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let unsubscribe: (() => void) | undefined;
 
     if (currentUser.role === 'admin') {
-      // Load all students assigned to this admin
-      const studentIds = adminStudents[currentUser.id] || [];
-      if (studentIds.length > 0) {
-        const loadStudents = async () => {
-          const studentsData: { [key: string]: Student } = {};
-          const promises = studentIds.map(async (userId) => {
-            const studentsRef = collection(db, 'students');
-            const q = query(studentsRef, where('userId', '==', userId));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-              const data = doc.data();
-              studentsData[doc.id] = { ...data, id: doc.id } as Student;
-            });
-          });
-          await Promise.all(promises);
-          setStudents(studentsData);
-        };
-        loadStudents();
-      }
+      // Use real-time listener for admin's students
+      const studentsRef = collection(db, 'students');
+      const q = query(studentsRef, where('adminId', '==', currentUser.id));
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const studentsData: { [key: string]: Student } = {};
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          studentsData[doc.id] = { ...data, id: doc.id } as Student;
+        });
+        setStudents(studentsData);
+      }, (error) => {
+        console.error('Error listening to admin students:', error);
+      });
     } else if (currentUser.role === 'student') {
       // Load current student's data
       const studentsRef = collection(db, 'students');
@@ -123,7 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUser, adminStudents, loading]);
+  }, [currentUser, loading]);
 
   // Load tasks from Firestore
   useEffect(() => {

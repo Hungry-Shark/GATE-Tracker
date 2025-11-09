@@ -15,7 +15,8 @@ import {
   where, 
   getDocs,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import type { User, UserRole, Student } from '../types';
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [students, setStudents] = useState<{ [adminId: string]: string[] }>({});
   const [loading, setLoading] = useState(true);
+  const studentListenerRef = React.useRef<(() => void) | null>(null);
 
   // Generate a unique 5 alphanumeric token
   const generateToken = useCallback(() => {
@@ -92,18 +94,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Load user data from Firestore
   const loadUserData = useCallback(async (uid: string) => {
     try {
+      // Clean up previous listener if exists
+      if (studentListenerRef.current) {
+        studentListenerRef.current();
+        studentListenerRef.current = null;
+      }
+
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (userDoc.exists()) {
         const userData = userDoc.data() as User;
         setCurrentUser({ ...userData, id: uid });
         
-        // Load admin-student relationships
+        // Load admin-student relationships with real-time listener
         if (userData.role === 'admin') {
           const studentsRef = collection(db, 'students');
           const q = query(studentsRef, where('adminId', '==', uid));
-          const querySnapshot = await getDocs(q);
-          const studentIds = querySnapshot.docs.map(doc => doc.data().userId);
-          setStudents(prev => ({ ...prev, [uid]: studentIds }));
+          
+          // Use onSnapshot for real-time updates when new students sign up
+          const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const studentIds = querySnapshot.docs.map(doc => doc.data().userId);
+            setStudents(prev => ({ ...prev, [uid]: studentIds }));
+          }, (error) => {
+            console.error('Error listening to students:', error);
+          });
+          
+          // Store unsubscribe function for cleanup
+          studentListenerRef.current = unsubscribe;
         }
       }
     } catch (error) {
@@ -116,15 +132,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        await loadUserData(user.uid);
+        // Don't block loading - load user data in background
+        setLoading(false);
+        loadUserData(user.uid).catch(console.error);
       } else {
         setCurrentUser(null);
         setStudents({});
+        setLoading(false);
+        // Clean up student listener when user logs out
+        if (studentListenerRef.current) {
+          studentListenerRef.current();
+          studentListenerRef.current = null;
+        }
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      // Clean up student listener on unmount
+      if (studentListenerRef.current) {
+        studentListenerRef.current();
+        studentListenerRef.current = null;
+      }
+    };
   }, [loadUserData]);
 
   const signup = useCallback(async (email: string, name: string, password: string, role: UserRole, adminToken?: string) => {

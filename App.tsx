@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext';
 import StudentDashboard from './components/dashboard/StudentDashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
 import Header from './components/common/Header';
@@ -14,23 +15,6 @@ type View = 'landing' | 'login' | 'signup';
 function AppContent() {
   const { currentUser, loading } = useAuth();
   const [view, setView] = useState<View>('landing');
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem('theme') === 'dark' || 
-               (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDarkMode]);
 
   // Listen for navigation events from landing page
   useEffect(() => {
@@ -44,17 +28,14 @@ function AppContent() {
     return () => window.removeEventListener('navigate', handleNavigate as EventListener);
   }, []);
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
-  // Show loading state
+  // Show minimal loading state - only if truly needed
   if (loading) {
     return (
-      <div className="min-h-screen font-sans text-light-text dark:text-dark-text bg-light-background dark:bg-dark-background transition-colors duration-300 flex items-center justify-center">
+      <div className="min-h-screen font-sans bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-black dark:to-gray-900 transition-colors duration-300 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 animate-pulse">
+          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-xl mx-auto mb-3 shadow-lg shadow-orange-500/50 animate-pulse">
             G
           </div>
-          <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading...</p>
         </div>
       </div>
     );
@@ -69,7 +50,7 @@ function AppContent() {
     );
   }
 
-  // Show auth forms if not authenticated (Login/Signup components handle their own backgrounds)
+  // Show auth forms if not authenticated
   if (!currentUser) {
     return (
       <>
@@ -84,11 +65,8 @@ function AppContent() {
 
   return (
     <AppProvider>
-      <div className="min-h-screen font-sans text-white bg-gradient-to-br from-gray-900 via-black to-gray-900">
-        <Header 
-          isDarkMode={isDarkMode} 
-          onToggleTheme={toggleTheme} 
-        />
+      <div className="min-h-screen font-sans text-light-text dark:text-dark-text bg-light-background dark:bg-gradient-to-br dark:from-gray-900 dark:via-black dark:to-gray-900 transition-colors duration-300">
+        <Header />
         <main className="p-4 sm:p-6 lg:p-8">
           {currentUser.role === 'student' ? <StudentDashboard /> : <AdminDashboard />}
         </main>
@@ -99,9 +77,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

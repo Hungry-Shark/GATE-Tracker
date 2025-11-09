@@ -25,14 +25,14 @@ const TaskItem: React.FC<{ task: Task, onUpdate: (id: string, status: 'completed
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className={`p-3 rounded-lg flex flex-col transition-shadow duration-200 ${task.status === 'completed' ? 'bg-success/20' : 'bg-light-background dark:bg-dark-background/50'}`}
+      className={`p-3 rounded-lg flex flex-col transition-shadow duration-200 border ${task.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' : 'bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'} transition-colors duration-300`}
     >
       <div className="flex items-center">
         <div className="flex-grow flex items-center space-x-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           <div className={`w-3 h-3 rounded-full ${subject?.color || 'bg-gray-400'}`}></div>
           <div className="flex-grow">
-            <p className={`font-medium ${task.status === 'completed' ? 'line-through text-light-text-secondary dark:text-dark-text-secondary' : ''}`}>{task.title}</p>
-            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{task.subject} • {task.estimatedTime} min</p>
+            <p className={`font-medium transition-colors duration-300 ${task.status === 'completed' ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>{task.title}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">{task.subject} • {task.estimatedTime} min</p>
           </div>
         </div>
         <div className="flex items-center space-x-2 ml-4">
@@ -50,7 +50,7 @@ const TaskItem: React.FC<{ task: Task, onUpdate: (id: string, status: 'completed
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-2 text-sm text-light-text-secondary dark:text-dark-text-secondary"
+            className="mt-2 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300"
           >
             <p>Type: <span className="font-semibold">{task.type}</span></p>
             <p>Due: <span className="font-semibold">{new Date(task.dueDate).toLocaleDateString()}</span></p>
@@ -94,11 +94,11 @@ const TodaysTasks: React.FC = () => {
   return (
     <Card className="h-full">
       <CardHeader>
-        <h2 className="text-lg font-bold">Today's Tasks</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white transition-colors duration-300">Today's Tasks</h2>
       </CardHeader>
       <CardContent className="space-y-4 max-h-[450px] overflow-y-auto">
         {todaysTasks.length === 0 ? (
-          <div className="text-center py-8 text-light-text-secondary dark:text-dark-text-secondary">
+          <div className="text-center py-8 text-gray-600 dark:text-gray-400 transition-colors duration-300">
             <p>🎉 All tasks for today are done!</p>
             <p className="text-sm">Great job! Time for a well-deserved break.</p>
           </div>

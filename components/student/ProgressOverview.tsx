@@ -36,12 +36,12 @@ const ProgressOverview: React.FC = () => {
     <Card>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6">
         {stats.map((stat) => (
-          <div key={stat.name} className="flex flex-col items-center justify-center space-y-2 p-4 rounded-lg bg-light-background dark:bg-dark-background/50">
-            <div className="p-3 bg-light-card dark:bg-dark-card rounded-full shadow-neumorphic-light-inset dark:shadow-neumorphic-dark-inset">
+          <div key={stat.name} className="flex flex-col items-center justify-center space-y-2 p-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+            <div className="p-3 bg-gray-200 dark:bg-gray-800/80 rounded-full transition-colors duration-300">
               {stat.icon}
             </div>
-            <p className="text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary">{stat.name}</p>
-            <p className="text-3xl font-bold font-mono text-light-text dark:text-dark-text">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors duration-300">{stat.name}</p>
+            <p className="text-3xl font-bold font-mono text-gray-900 dark:text-white transition-colors duration-300">
               {stat.value}<span className="text-lg">{stat.unit}</span>
             </p>
           </div>

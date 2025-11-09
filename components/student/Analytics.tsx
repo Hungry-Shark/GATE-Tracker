@@ -59,8 +59,8 @@ const StudyHeatmap = () => {
 
     return (
         <div>
-            <h3 className="font-semibold mb-2">Study Time Heatmap (Last 90 Days)</h3>
-            <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary mb-2">
+            <h3 className="font-semibold mb-2 text-gray-900 dark:text-white transition-colors duration-300">Study Time Heatmap (Last 90 Days)</h3>
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 transition-colors duration-300">
                 {weekdays.map(day => <div key={day}>{day}</div>)}
             </div>
             <div className="grid grid-cols-7 gap-2 justify-items-center items-center">
@@ -99,10 +99,10 @@ const StudyHeatmap = () => {
                             <Card className="shadow-2xl">
                                 <CardHeader className="flex justify-between items-center">
                                     <div>
-                                        <h3 className="text-lg font-bold">{format(selectedDay.date, 'EEEE, MMMM d')}</h3>
-                                        <p className="text-sm font-mono text-primary">{selectedDay.minutes} minutes studied</p>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white transition-colors duration-300">{format(selectedDay.date, 'EEEE, MMMM d')}</h3>
+                                        <p className="text-sm font-mono text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">{selectedDay.minutes} minutes studied</p>
                                     </div>
-                                    <button onClick={() => setSelectedDay(null)} className="p-2 rounded-full hover:bg-light-background dark:hover:bg-dark-background">
+                                    <button onClick={() => setSelectedDay(null)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800/50 text-gray-900 dark:text-white transition-colors duration-300">
                                         <XMarkIcon className="w-6 h-6"/>
                                     </button>
                                 </CardHeader>
@@ -110,14 +110,14 @@ const StudyHeatmap = () => {
                                     {selectedDay.tasks.length > 0 ? (
                                         <ul className="space-y-2">
                                             {selectedDay.tasks.map(task => (
-                                                <li key={task.id} className="p-3 rounded-lg bg-light-background dark:bg-dark-background/50">
-                                                    <p className="font-semibold">{task.title}</p>
-                                                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{task.subject} • {task.estimatedTime} min</p>
+                                                <li key={task.id} className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                                                    <p className="font-semibold text-gray-900 dark:text-white transition-colors duration-300">{task.title}</p>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">{task.subject} • {task.estimatedTime} min</p>
                                                 </li>
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-center text-light-text-secondary dark:text-dark-text-secondary py-4">No tasks completed on this day.</p>
+                                        <p className="text-center text-gray-600 dark:text-gray-400 py-4 transition-colors duration-300">No tasks completed on this day.</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -148,11 +148,11 @@ const SubjectDistributionChart = () => {
         return colorMap[d.color] || '#8884d8';
     });
 
-    if (data.length === 0) return <p className="text-center text-light-text-secondary dark:text-dark-text-secondary">No completed tasks yet.</p>;
+    if (data.length === 0) return <p className="text-center text-gray-400">No completed tasks yet.</p>;
 
     return (
         <div>
-            <h3 className="font-semibold mb-2">Subject Time Distribution</h3>
+            <h3 className="font-semibold mb-2 text-gray-900 dark:text-white transition-colors duration-300">Subject Time Distribution</h3>
             <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
                     <PieChart>
@@ -180,7 +180,7 @@ const WeeklyPerformanceChart = () => {
 
     return (
         <div>
-            <h3 className="font-semibold mb-2">Weekly Performance (Tasks Completed)</h3>
+            <h3 className="font-semibold mb-2 text-gray-900 dark:text-white transition-colors duration-300">Weekly Performance (Tasks Completed)</h3>
             <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
                     <BarChart data={data}>
@@ -201,7 +201,7 @@ const Analytics: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-lg font-bold">Analytics</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white transition-colors duration-300">Analytics</h2>
       </CardHeader>
       <CardContent className="space-y-8">
         <StudyHeatmap />
